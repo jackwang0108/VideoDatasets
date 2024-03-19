@@ -1,34 +1,15 @@
 # Standard Library
-import os
+import json
 import requests
-import urllib.error
+import subprocess
 import multiprocessing
 from pathlib import Path
 from typing import Optional, Callable
 
 
 # Third-Party Library
-from pytube import YouTube
-
-
-# Third-Party Library
 import pandas as pd
-import pytube.exceptions
-from pytube import YouTube
 from colorama import Fore, Style
-from pytube.query import Stream, StreamQuery
-
-
-class ProxyError(Exception):
-    def __init__(self) -> None:
-        super().__init__()
-        self.message = "Proxy Error"
-
-
-class VideoNotFoundError(Exception):
-    def __init__(self, youtube_id: str) -> None:
-        super().__init__()
-        self.message = f"No Video Found {youtube_id}"
 
 
 def colorizer(color: int) -> Callable:
@@ -56,21 +37,71 @@ def red(text: str, bright: bool = False):
     return text
 
 
-def parse_csv(csv_path: Path | str) -> list[tuple[str, str, str, int]]:
-    def process_resolution(res: str) -> str:
-        if res == "1920x1080":
-            return "1080p"
-        elif res == "1280x720":
-            return "720p"
+def get_csv() -> pd.DataFrame:
+    """
+    从JSON文件中提取视频信息并返回一个包含视频信息的pandas DataFrame。
+    注意, 函数会将该DataFrame保存到video.csv文件中
+
+    返回:
+        pd.DataFrame: 包含视频信息的DataFrame。
+
+    示例:
+        >>> get_csv()
+            name resolution    fps yt_id
+        0  video1    1280x720  30.00  video1
+        1  video2   1920x1080  24.00  video2
+    """
+
+    lines = {}
+
+    for split in ["train", "val", "test"]:
+
+        with (Path(__file__).resolve().parent / f"{split}.json").open(mode="r") as f:
+            json_info: list[dict[str, int | str | list | dict]] = json.load(f)
+
+        for unit in json_info:
+            name = unit["video"].split("_")[0]
+            if name not in lines.keys():
+                lines[name] = {
+                    "name": name,
+                    "resolution": f"{unit['width']}x{unit['height']}",
+                    "fps": round(unit["fps"], ndigits=2),
+                    "yt_id": name,
+                }
+
+    df = pd.DataFrame(lines.values(), columns=list(lines.values())[0].keys())
+    df.to_csv(Path(__file__).resolve().parent / "videos.csv", index=None)
+    return df
+
+
+def parse_csv(csv_path: Path | str) -> list[tuple[str, int, str, str]]:
+    """
+    解析CSV文件并将数据作为元组列表返回。
+
+    参数:
+        csv_path (Path或str): CSV文件的路径。
+
+    返回:
+        list[tuple[str, int, str, str]]: 解析后的数据作为元组列表。
+        tuple[str, int, str, str]分别表示一段视频的youtube_id, fps, height, width
+
+    示例:
+        >>> parse_csv("data.csv")
+        [
+            ['634UMLDrVzc', 30, '1080', '1920'],
+            ['i8TAarlV4_Q', 30, '1080', '1920'],
+            ...
+        ]
+    """
 
     def process_fps(fps: int) -> int:
         return round(fps)
 
     df = pd.read_csv(csv_path)
     df["fps"] = df["fps"].apply(process_fps)
-    df["resolution"] = df["resolution"].apply(process_resolution)
+    df[['width', 'height']] = df['resolution'].str.split('x', expand=True)
 
-    column_order = ["name", "yt_id", "resolution", "fps"]
+    column_order = ["yt_id", "fps", "height", "width"]
     df = df.reindex(columns=column_order)
     return df.values.tolist()
 
@@ -103,151 +134,97 @@ def get_proxy_handler(port: int | str = 7890, ip: str = "127.0.0.1", test: bool 
     return succeeded if test else True, proxy_handler
 
 
-def download(youtube_id: str, fps: int, resolution: str, proxy_handler: dict[str, str], filename: str, output_dir: Optional[Path | str] = None) -> bool:
+def download(args):
     """
-    从Youtube上下载指定参数的视频
+    使用指定参数调用yt-dlp下载YouTube视频。
 
-    Args:
-        youtube_id (str): YouTube视频ID.
-        fps (int): 将下载视频的FPS
-        resolution (str): 将下载视频的分辨率
-        proxy_handler (dict[str, str]): 代理设置的字典
-        output_name (str): 下载视频保存的文件名
-        output_dir (Path | str): 下载视频输出的目录
+    参数:
+        args (tuple): 包含以下元素的元组，按顺序排列：
+            - outdir (str): 下载视频的输出目录。
+            - ip (str): 代理连接的IP地址。
+            - port (int): 代理连接的端口号。
+            - youtube_id (str): YouTube视频的ID。
+            - fps (int): 所需的每秒帧数。
+            - height (str): 视频的所需高度。
+            - width (str): 视频的所需宽度。
 
-    Returns:
-        bool: 如果视频成功下载则返回True, 否则返回False
-
-    Raises:
-        ProxyError: 如果下载视频的时候因为代理导致下载失败
-        NoneVideoError: 如果没有根据的参数找到可以下载的视频
-
-    Examples:
-        >>> download("cZqaa0b34vk", 30, "720p", {"http": "http://127.0.0.1:7890", "https": "http://127.0.0.1:7890"}, "/path/to/output")
-        True
+    返回:
+        tuple: 包含下载过程中的输出和错误信息的元组。
     """
 
-    # get the video
-    url: str = f"https://www.youtube.com/watch?v={youtube_id}"
-    yt: YouTube = YouTube(
-        url=url,
-        proxies=proxy_handler,
-        # use_oauth=True,
-        # allow_oauth_cache=True,
-    )
-    try:
-        streams: StreamQuery = yt.streams.filter(
-            fps=fps, resolution=resolution)
-    except urllib.error.URLError as e:
-        print(F"Proxy error at downloading: {url}")
-        raise ProxyError from e
-    except pytube.exceptions.AgeRestrictedError:
-        print(f"Downloading {filename} failed because of age restriction")
+    outdir, ip, port, youtube_id, fps, height, width = args
+    command = (
+        f"yt-dlp --proxy http://{ip}:{port} "
+        + f'-P {outdir} '
+        + f'-f \"bv*[width={width}][height={height}][fps={fps}][ext=mp4]\" '
+    ) + f"\"https://www.youtube.com/watch?v={youtube_id}\""
+    print((
+        "yt-dlp --proxy "
+        + green(f"http://{ip}:{port}", True)
+        + f' -P {green(outdir, True)}'
+        + f' -f \"bv*['
+        + green(f"width={width}", True)
+        + "][height="
+        + green(f"{height}", True)
+        + "][fps="
+        + green(f"{fps}", True)
+        + "][ext="
+        + green("mp4", True)
+        + "]\""
+        + " \"https://www.youtube.com/watch?v="
+        + green(f"{youtube_id}", True) + "\""
+    ))
+    process = subprocess.Popen(
+        command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process.wait()
+    output, error = process.communicate()
+    return output, error
+
+
+def main(outdir: Path | str, port: int, ip: str):
+    """
+    使用多进程从CSV文件下载视频。
+
+    参数:
+        outdir (Path或str): 下载视频的输出目录。
+        port (int): 代理连接的端口号。
+        ip (str): 代理连接的IP地址。
+
+    返回:
+        bool: 如果代理测试成功则返回True，否则返回False。
+
+    示例:
+        >>> main("videos/", 8080, "127.0.0.1")
+        代理测试成功，当前使用: https://127.0.0.1:8080
+        输出: ...
+        错误: ...
+    """
+
+    # Test Proxy
+    proxy_status, _ = get_proxy_handler(port=port, ip=ip, test=True)
+    if not proxy_status:
+        print(red(f"Proxy test failed, current using: https://{ip}:{port}"))
         return False
+    print(green(f"Proxy test succeed, current using: https://{ip}:{port}"))
 
-    # filter out the video
-    if len(streams) == 0:
-        raise VideoNotFoundError(youtube_id)
-    target_video: Stream = streams[0]
+    videos_to_download = parse_csv(
+        Path(__file__).resolve().parent / "videos.csv")
 
-    video_size: float = round(target_video.filesize / 1024 / 1024, ndigits=2)
-    print(f"Start downloading video: {
-          green(target_video.title)}, filesize: {green(video_size, True)} MB")
+    videos_to_download = [[outdir, ip, port] + i for i in videos_to_download]
 
-    # prepare output dir
+    with multiprocessing.Pool(8) as pool:
+        results = pool.map(download, videos_to_download)
 
-    if output_dir is not None:
-        assert isinstance(
-            output_dir, (str, Path)
-        ), "output_dir should be either Path or str"
-        output_dir = Path(output_dir) if isinstance(
-            output_dir, str) else output_dir
-        if not output_dir.exists():
-            output_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        output_dir = Path(os.getcwd())
-
-    # download the video and check
-    video_path: Path = Path(target_video.download(
-        str(output_dir), filename=filename, max_retries=3))
-    return video_path.exists()
-
-
-def main_worker(filename: str, youtube_id: str, resolution: str, fps: int, outdir: Optional[Path | str] = None):
-    """
-    执行从YouTube下载视频的任务的工作函数
-
-    Args:
-        youtube_id (str): YouTube视频ID.
-        resolution (str): YouTube视频分辨率.
-        fps (int): YouTube视频FPS
-
-    Returns:
-        如果下载成功, 返回True, 否则返回False
-
-    Examples:
-        >>> main_worker("cZqaa0b34vk", "720p", 30)
-        True
-    """
-
-    proxy_ok, proxy = get_proxy_handler(test=True)
-    if not proxy_ok:
-        print(f"Proxy Test {yellow('failed', True)}, did you open proxy now?")
-        return False
-
-    max_retry = 3
-    success = False
-    print(f"Processing: {filename}")
-    while max_retry > 0 and not success:
-        try:
-            success = download(youtube_id=youtube_id, fps=fps,
-                               resolution=resolution, proxy_handler=proxy, output_dir=outdir, filename=filename)
-            if success:
-                print(f"Download {green('Success')}: {filename}")
-        except ProxyError as e:
-            max_retry -= 1
-            success = False
-            print(f"Download video {
-                filename} {yellow('failed', True)} because of proxy error, will retry later...")
-        except VideoNotFoundError as e:
-            max_retry = 0
-            success = False
-            print(f"Download video {
-                filename} {red('failed', True)} because of video not found, failed!")
-    return success
-
-
-def main(outdir: Path | str):
-    """
-    多进程YouTube视频下载程序入口函数
-
-    Examples:
-        >>> main()
-        [True]
-    """
-
-    videos_to_download = parse_csv("./data/tennis/videos.csv")
-
-    async_results = []
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
-    for filename, video_id, resolution, fps in videos_to_download:
-        result = pool.apply_async(
-            main_worker, (filename, video_id, resolution, fps, outdir))
-        async_results.append(result)
-
-    # 等待所有任务完成
-    pool.close()
-    pool.join()
-
-    results = [
-        [video_info[0], async_result.get()]
-        for video_info, async_result in zip(videos_to_download, async_results)
-    ]
-
-    with open("tennis_result.txt", mode="w") as f:
-        for r in results:
-            f.write(f"{r[0]}, {r[1]}\n")
+    for result in results:
+        output, error = result
+        if output:
+            print("Output:", output.decode())
+        if error:
+            print("Error:", error.decode())
+    # output, error = download(videos_to_download[1])
+    # print(output)
+    # print(error)
 
 
 if __name__ == "__main__":
-    main("./tennis")
+    main("./tennis", 7890, "127.0.0.1")

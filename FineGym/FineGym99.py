@@ -1,5 +1,4 @@
 # Standard Library
-import os
 import json
 import requests
 import subprocess
@@ -152,7 +151,7 @@ def main(outdir: Path | str, port: int, ip: str):
 
     videos_to_download = [[outdir, ip, port] + i for i in videos_to_download]
 
-    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+    with multiprocessing.Pool(8) as pool:
         results = pool.map(download, videos_to_download)
 
     for result in results:
@@ -167,4 +166,6 @@ def main(outdir: Path | str, port: int, ip: str):
 
 
 if __name__ == "__main__":
-    main("./FinGym99", 7890, "127.0.0.1")
+    if not (csv := Path(__file__).resolve().parent / "videos.csv").exists():
+        get_csv()
+    main("./FineGym99", 7890, "127.0.0.1")

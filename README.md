@@ -1,4 +1,7 @@
 # Video Dataset Downloader
+
+A multi-process video dataset downloader.
+
 ![alt text](./assets/image.png)
 
 ## Overview
@@ -51,16 +54,41 @@ I think losing ~10/~200 is acceptable. **So I didn't do extra efforts to finds t
 If the downloader is interrupted, the temporary files will be saved. So that the next time you run the program, it will start to download again.
 
 
+### About FFmpeg
+
+Basically, we need a mp4 format video. So sometimes we need to convert the downloaded videos. That why we need ffmpeg.
+
+To use ffmpeg, just set the location of ffmpeg in the code.
+
+![alt text](./assets/ffmpeg.png)
+
 
 ## Usage
 1. Update the `main` function with the desired output directory, proxy port, and IP address.
-2. Configure your proxy software with the specified IP address and port.
-3. Run the script to download tennis videos from YouTube.
+2. Setup the location of ffmpeg
+    ```python
+    # FineGym99.py for example
+    if __name__ == "__main__":
+        if not (csv := Path(__file__).resolve().parent / "videos.csv").exists():
+            get_csv()
+
+        os.environ["ffmpeg_path"] = "path-to-ffmpeg"
+        main(Path(__file__).resolve().parent / "FineGym99", ProxyPort, ProxyIP)
+    ```
+3. Configure your proxy software with the specified IP address and port. For an instance, I'm using clash on port `7890` of localhost (`127.0.0.1`) 
+    ![alt text](./assets/proxy.png)
+4. Run the script to download tennis videos from YouTube.
+    ![alt text](./assets/start.png)
+
 
 ## Example
-```python
-if __name__ == "__main__":
-    main(Path(__file__).resolve().parent / "output_directory", 7890, "127.0.0.1")
+
+Run the following command to download the videos of `FineGym99` datasets.
+```bash
+cd <path-to-project>
+python -m pip install -r ./requirements.txt
+# download FineGym99
+python FineGym99.py
 ```
 
 ## Note

@@ -4,13 +4,12 @@ import requests
 import subprocess
 import multiprocessing
 from pathlib import Path
-from typing import Any, Callable
-
+from typing import Optional, Callable
 
 # Third-Party Library
 import pandas as pd
-from yt_dlp import YoutubeDL
 from colorama import Fore, Style
+from yt_dlp import YoutubeDL
 
 
 def colorizer(color: int) -> Callable:
@@ -39,20 +38,6 @@ def red(text: str, bright: bool = False):
 
 
 def get_csv() -> pd.DataFrame:
-    """
-    从JSON文件中提取视频信息并返回一个包含视频信息的pandas DataFrame。
-    注意, 函数会将该DataFrame保存到video.csv文件中
-
-    返回:
-        pd.DataFrame: 包含视频信息的DataFrame。
-
-    示例:
-        >>> get_csv()
-            name resolution    fps yt_id
-        0  video1    1280x720  30.00  video1
-        1  video2   1920x1080  24.00  video2
-    """
-
     lines = {}
 
     for split in ["train", "val", "test"]:
@@ -75,25 +60,7 @@ def get_csv() -> pd.DataFrame:
     return df
 
 
-def parse_csv(csv_path: Path | str) -> list[tuple[str, int, str, str]]:
-    """
-    解析CSV文件并将数据作为元组列表返回。
-
-    参数:
-        csv_path (Path或str): CSV文件的路径。
-
-    返回:
-        list[tuple[str, int, str, str]]: 解析后的数据作为元组列表。
-        tuple[str, int, str, str]分别表示一段视频的youtube_id, fps, height, width
-
-    示例:
-        >>> parse_csv("data.csv")
-        [
-            ['634UMLDrVzc', 30, '1080', '1920'],
-            ['i8TAarlV4_Q', 30, '1080', '1920'],
-            ...
-        ]
-    """
+def parse_csv(csv_path: Path | str) -> list[tuple[str, str, str, int]]:
 
     def process_fps(fps: int) -> int:
         return round(fps)
@@ -239,4 +206,6 @@ def main(outdir: Path | str, port: int, ip: str):
 
 
 if __name__ == "__main__":
-    main(Path(__file__).resolve().parent / "tennis", 7890, "127.0.0.1")
+    if not (csv := Path(__file__).resolve().parent / "videos.csv").exists():
+        get_csv()
+    main(Path(__file__).resolve().parent / "FineGym99", 7890, "127.0.0.1")

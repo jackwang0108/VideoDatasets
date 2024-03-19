@@ -46,6 +46,11 @@ Program will throw an error warning you about this video when downloading, but w
 I think losing ~10/~200 is acceptable. **So I didn't do extra efforts to finds the lost videos.** If you do need them, just modify the url in the codes, for `yt-dlp` can also download from sources other than YouTube.
 
 
+### When you interrupt downloading
+
+If the downloader is interrupted, the temporary files will be saved. So that the next time you run the program, it will start to download again.
+
+
 
 ## Usage
 1. Update the `main` function with the desired output directory, proxy port, and IP address.

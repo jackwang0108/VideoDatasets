@@ -166,7 +166,7 @@ def download(
         'noprogress': True,
         "proxy": f"http://{ip}:{port}",
         "geo_bypass_country": "US",
-        "outtmpl": f"{outdir}/%(title)s.%(ext)s",
+        "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
         "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4]",
     }
 

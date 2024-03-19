@@ -1,4 +1,5 @@
 # Standard Library
+import os
 import json
 import requests
 import subprocess
@@ -166,6 +167,7 @@ def download(
         'noprogress': True,
         "proxy": f"http://{ip}:{port}",
         "geo_bypass_country": "US",
+        "ffmpeg_location": os.environ["ffmpeg_path"],
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
         "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4]",
     }
@@ -232,11 +234,12 @@ def main(outdir: Path | str, port: int, ip: str):
     pool.join()
 
     results = [i.get() for i in async_results]
-    for r in results:
-        success, yt_id = r
-        with (Path(__file__).resolve().parent / "result.txt").open(mode="w") as f:
-            f.write(f"{yt_id}, {success}")
+    with (Path(__file__).resolve().parent / "result.txt").open(mode="w") as f:
+        for r in results:
+            success, yt_id = r
+            f.write(f"{yt_id}, {success}\n")
 
 
 if __name__ == "__main__":
+    os.environ["ffmpeg_path"] = "/home/wsf/opts/ffmpeg/bin/ffmpeg"
     main(Path(__file__).resolve().parent / "fs_comp", 7890, "127.0.0.1")

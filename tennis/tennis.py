@@ -218,7 +218,7 @@ def download(
 def main(args: argparse.Namespace):
     """下载tennis数据集
 
-    下载tennis数据集，包括设置ffmpeg路径、测试代理、下载视频和将视频下载结果写入文件。
+    执行下载tennis数据集的主要功能，包括设置ffmpeg路径、测试代理、下载视频和将视频下载结果写入文件。
 
     Args:
         args (argparse.Namespace): 命令行参数解析为命名空间对象。

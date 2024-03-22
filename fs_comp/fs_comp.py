@@ -2,6 +2,7 @@
 import os
 import json
 import requests
+import argparse
 import subprocess
 import multiprocessing
 from pathlib import Path
@@ -37,6 +38,28 @@ def yellow(text: str, bright: bool = False):
 @colorizer(Fore.RED)
 def red(text: str, bright: bool = False):
     return text
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Command-Line tool for downloading fs_comp dataset")
+    parser.add_argument(
+        "-fp", "--ffmpeg_path", default="/home/wsf/opts/ffmpeg/bin/ffmpeg",
+        type=str, help="Path of ffmpeg executable"
+    )
+    parser.add_argument(
+        "-o", "--outdir", default="tennis",
+        type=str, help="path to save downloaded videos"
+    )
+    parser.add_argument(
+        "-p", "--port", default=7890,
+        type=int, help="port of command-line proxy"
+    )
+    parser.add_argument(
+        "-i", "--ip", default="127.0.0.1",
+        type=str, help="ip of command-line proxy"
+    )
+    return parser.parse_args()
 
 
 def get_csv() -> pd.DataFrame:
@@ -165,12 +188,13 @@ def download(
     opts = {
         "quiet": True,
         'noprogress': True,
-        "proxy": f"http://{ip}:{port}",
         "geo_bypass_country": "US",
         "ffmpeg_location": os.environ["ffmpeg_path"],
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
         "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4]",
     }
+    if ip is not None and port is None:
+        opts["proxy"] = f"http://{ip}:{port}"
 
     info = [
         "yt-dlp",
@@ -192,31 +216,35 @@ def download(
     return yt.download(url) == 0, yt_id
 
 
-def main(outdir: Path | str, port: int, ip: str):
+def main(args: argparse.Namespace):
+    """下载fs_comp数据集
+
+    执行下载fs_comp应用程序的主要功能，包括设置ffmpeg路径、测试代理、下载视频和将视频下载结果写入文件。
+
+    Args:
+        args (argparse.Namespace): 命令行参数解析为命名空间对象。
+
+    Returns:
+        bool: 如果主要功能成功执行，则为True；否则为False。
     """
-    使用多进程从CSV文件下载视频。
 
-    参数:
-        outdir (Path或str): 下载视频的输出目录。
-        port (int): 代理连接的端口号。
-        ip (str): 代理连接的IP地址。
-
-    返回:
-        bool: 如果代理测试成功则返回True，否则返回False。
-
-    示例:
-        >>> main("videos/", 8080, "127.0.0.1")
-        代理测试成功，当前使用: https://127.0.0.1:8080
-        输出: ...
-        错误: ...
-    """
+    outdir: Path = Path(args.outdir)
+    port: int = int(args.port)
+    ip: str = args.ip
+    os.environ["ffmpeg_path"] = args.ffmpeg_path
+    print(f"set ffmpeg path to: {green(os.environ['ffmpeg_path'])}")
 
     # Test Proxy
-    proxy_status, _ = get_proxy_handler(port=port, ip=ip, test=True)
-    if not proxy_status:
-        print(red(f"Proxy test failed, current using: https://{ip}:{port}"))
-        return False
-    print(green(f"Proxy test succeed, current using: https://{ip}:{port}"))
+    if ip is not None and port is not None:
+        print(f"proxy provided: {green(ip)}:{green(port)}")
+        proxy_status, _ = get_proxy_handler(port=port, ip=ip, test=True)
+        if not proxy_status:
+            print(
+                red(f"Proxy test failed for https://{ip}:{port}"))
+            return False
+        print(green(f"Proxy test succeed for https://{ip}:{port}"))
+    else:
+        print("proxy not provided")
 
     videos_to_download = parse_csv(
         Path(__file__).resolve().parent / "videos.csv")
@@ -239,7 +267,8 @@ def main(outdir: Path | str, port: int, ip: str):
             success, yt_id = r
             f.write(f"{yt_id}, {success}\n")
 
+    print("Done, check result.txt for download log")
+
 
 if __name__ == "__main__":
-    os.environ["ffmpeg_path"] = "/home/wsf/opts/ffmpeg/bin/ffmpeg"
-    main(Path(__file__).resolve().parent / "fs_comp", 7890, "127.0.0.1")
+    main(get_args())

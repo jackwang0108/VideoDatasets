@@ -47,7 +47,7 @@ def get_args() -> argparse.Namespace:
         type=str, help="Path of ffmpeg executable"
     )
     parser.add_argument(
-        "-o", "--outdir", default="tennis",
+        "-o", "--outdir", default="FineGym99",
         type=str, help="path to save downloaded videos"
     )
     parser.add_argument(
@@ -85,6 +85,24 @@ def get_csv() -> pd.DataFrame:
 
 
 def parse_csv(csv_path: Path | str) -> list[tuple[str, str, str, int]]:
+    """
+    解析CSV文件并将数据作为元组列表返回。
+
+    参数:
+        csv_path (Path或str): CSV文件的路径。
+
+    返回:
+        list[tuple[str, int, str, str]]: 解析后的数据作为元组列表。
+        tuple[str, int, str, str]分别表示一段视频的youtube_id, fps, height, width
+
+    示例:
+        >>> parse_csv("data.csv")
+        [
+            ['634UMLDrVzc', 30, '1080', '1920'],
+            ['i8TAarlV4_Q', 30, '1080', '1920'],
+            ...
+        ]
+    """
 
     def process_fps(fps: int) -> int:
         return round(fps)
@@ -158,7 +176,7 @@ def download(
         "geo_bypass_country": "US",
         "ffmpeg_location": os.environ["ffmpeg_path"],
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
-        "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4]",
+        "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4][protocol=https]",
     }
     if ip is not None and port is None:
         opts["proxy"] = f"http://{ip}:{port}"

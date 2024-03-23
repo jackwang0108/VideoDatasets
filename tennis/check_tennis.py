@@ -41,10 +41,10 @@ def get_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def check_videos():
+def check_videos(outdir: Path):
     df = pd.read_csv('videos.csv')
 
-    video_dir = Path("./tennis")
+    video_dir = Path(outdir)
 
     for index, row in df.iterrows():
         video_id = row['yt_id']
@@ -80,7 +80,7 @@ def main():
     args = get_args()
 
     if args.check:
-        check_videos()
+        check_videos(Path(args.outdir))
     else:
         # Test Proxy
         ip: str = args.ip

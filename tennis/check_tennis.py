@@ -20,7 +20,7 @@ def get_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-o", "--outdir", default="tennis",
-        type=str, help="path to save downloaded videos"
+        type=str, help="path to saved downloaded videos"
     )
     parser.add_argument(
         "-p", "--port", default=7890,

@@ -187,10 +187,11 @@ def download(
     opts = {
         "quiet": True,
         'noprogress': True,
+        "fixup": "detect_or_warn",
         "geo_bypass_country": "US",
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
         "ffmpeg_location": os.environ["ffmpeg_path"],
-        "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4]",
+        "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4][protocol=https]",
     }
     if ip is not None and port is None:
         opts["proxy"] = f"http://{ip}:{port}"

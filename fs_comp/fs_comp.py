@@ -48,8 +48,8 @@ def get_args() -> argparse.Namespace:
         type=str, help="Path of ffmpeg executable"
     )
     parser.add_argument(
-        "-o", "--outdir", default="tennis",
-        type=str, help="path to save downloaded videos"
+        "-o", "--outdir", default="fs_comp",
+        type=str, help="path to saved downloaded videos"
     )
     parser.add_argument(
         "-p", "--port", default=7890,
@@ -191,7 +191,7 @@ def download(
         "geo_bypass_country": "US",
         "ffmpeg_location": os.environ["ffmpeg_path"],
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
-        "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4]",
+        "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4][protocol=https]",
     }
     if ip is not None and port is None:
         opts["proxy"] = f"http://{ip}:{port}"

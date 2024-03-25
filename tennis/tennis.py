@@ -5,8 +5,7 @@ import requests
 import argparse
 import multiprocessing
 from pathlib import Path
-from typing import Any, Callable
-
+from typing import Callable
 
 # Third-Party Library
 import pandas as pd
@@ -213,7 +212,11 @@ def download(
         opts
     )
     url = f"https://www.youtube.com/watch?v={yt_id}"
-    return yt.download(url) == 0, yt_id
+    try:
+        result = yt.download(url)
+    except Exception:
+        result = 1
+    return result, yt_id
 
 
 def main(args: argparse.Namespace):
@@ -250,7 +253,7 @@ def main(args: argparse.Namespace):
         Path(__file__).resolve().parent / "videos.csv")
 
     async_results = []
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(multiprocessing.cpu_count() // 4)
     for video_info in videos_to_download:
         yt_id, fps, height, width = video_info
         r = pool.apply_async(

@@ -3,15 +3,14 @@ import os
 import json
 import requests
 import argparse
-import subprocess
 import multiprocessing
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Callable
 
 # Third-Party Library
 import pandas as pd
-from colorama import Fore, Style
 from yt_dlp import YoutubeDL
+from colorama import Fore, Style
 
 
 def colorizer(color: int) -> Callable:
@@ -62,6 +61,20 @@ def get_args() -> argparse.Namespace:
 
 
 def get_csv() -> pd.DataFrame:
+    """
+    从JSON文件中提取视频信息并返回一个包含视频信息的pandas DataFrame。
+    注意, 函数会将该DataFrame保存到video.csv文件中
+
+    返回:
+        pd.DataFrame: 包含视频信息的DataFrame。
+
+    示例:
+        >>> get_csv()
+            name resolution    fps yt_id
+        0  video1    1280x720  30.00  video1
+        1  video2   1920x1080  24.00  video2
+    """
+
     lines = {}
 
     for split in ["train", "val", "test"]:
@@ -84,7 +97,7 @@ def get_csv() -> pd.DataFrame:
     return df
 
 
-def parse_csv(csv_path: Path | str) -> list[tuple[str, str, str, int]]:
+def parse_csv(csv_path: Path | str) -> list[tuple[str, int, str, str]]:
     """
     解析CSV文件并将数据作为元组列表返回。
 
@@ -173,9 +186,10 @@ def download(
     opts = {
         "quiet": True,
         'noprogress': True,
+        "fixup": "detect_or_warn",
         "geo_bypass_country": "US",
-        "ffmpeg_location": os.environ["ffmpeg_path"],
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
+        "ffmpeg_location": os.environ["ffmpeg_path"],
         "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4][protocol=https]",
     }
     if ip is not None and port is None:
@@ -198,7 +212,11 @@ def download(
         opts
     )
     url = f"https://www.youtube.com/watch?v={yt_id}"
-    return yt.download(url) == 0, yt_id
+    try:
+        result = yt.download(url)
+    except Exception:
+        result = 1
+    return result, yt_id
 
 
 def main(args: argparse.Namespace):
@@ -235,7 +253,7 @@ def main(args: argparse.Namespace):
         Path(__file__).resolve().parent / "videos.csv")
 
     async_results = []
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(multiprocessing.cpu_count() // 4)
     for video_info in videos_to_download:
         yt_id, fps, height, width = video_info
         r = pool.apply_async(

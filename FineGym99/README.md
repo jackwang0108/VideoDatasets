@@ -31,6 +31,9 @@ to download the videos. If Youtube is restricted in your area, you can also pass
 python FineGym99.py --ip <your-proxy-ip-address> --port <your-proxy-port> --outdir <path-to-save-downloaded-videos> --ffmpeg_path <path-of-ffmpeg-executables>
 ```
 
+Note: Some of the videos is already invalid on the Youtube, for example, the account associated with the video has been terminated.
+So, the download will fail, please check `result.txt` for invalid videos.
+
 For detail information, please check `FineGym99.py`
 
 > Note, if you want to obtain the videos from youtube by yourself, make sure to download the correct frame rate and quality settings.

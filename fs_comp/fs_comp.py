@@ -3,10 +3,9 @@ import os
 import json
 import requests
 import argparse
-import subprocess
 import multiprocessing
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 
 # Third-Party Library
@@ -188,9 +187,10 @@ def download(
     opts = {
         "quiet": True,
         'noprogress': True,
+        "fixup": "detect_or_warn",
         "geo_bypass_country": "US",
-        "ffmpeg_location": os.environ["ffmpeg_path"],
         "outtmpl": f"{outdir}/%(id)s.%(title)s.%(ext)s",
+        "ffmpeg_location": os.environ["ffmpeg_path"],
         "format": f"bv*[width={width}][height={height}][fps={fps}][ext=mp4][protocol=https]",
     }
     if ip is not None and port is None:
@@ -213,7 +213,11 @@ def download(
         opts
     )
     url = f"https://www.youtube.com/watch?v={yt_id}"
-    return yt.download(url) == 0, yt_id
+    try:
+        result = yt.download(url)
+    except Exception:
+        result = 1
+    return result, yt_id
 
 
 def main(args: argparse.Namespace):
@@ -250,7 +254,7 @@ def main(args: argparse.Namespace):
         Path(__file__).resolve().parent / "videos.csv")
 
     async_results = []
-    pool = multiprocessing.Pool(multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(multiprocessing.cpu_count() // 4)
     for video_info in videos_to_download:
         yt_id, fps, height, width = video_info
         r = pool.apply_async(

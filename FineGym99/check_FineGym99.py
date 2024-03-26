@@ -100,7 +100,7 @@ def main():
         df = pd.read_csv('videos.csv')
 
         video_info = df[df['yt_id'] == args.yt_id][['resolution', 'fps']]
-        fps = round(video_info['fps'].values[0])
+        fps = round(video_info['fps'].values[0], ndigits=3)
         resolution = video_info['resolution'].values[0]
         width, height = map(int, resolution.split('x'))
 

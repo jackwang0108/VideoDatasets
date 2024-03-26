@@ -88,7 +88,7 @@ def get_csv() -> pd.DataFrame:
                 lines[name] = {
                     "name": name,
                     "resolution": f"{unit['width']}x{unit['height']}",
-                    "fps": round(unit["fps"], ndigits=2),
+                    "fps": round(unit["fps"], ndigits=4),
                     "yt_id": name,
                 }
 
@@ -118,7 +118,7 @@ def parse_csv(csv_path: Path | str) -> list[tuple[str, int, str, str]]:
     """
 
     def process_fps(fps: int) -> int:
-        return round(fps)
+        return round(fps, ndigits=3)
 
     df = pd.read_csv(csv_path)
     df["fps"] = df["fps"].apply(process_fps)
